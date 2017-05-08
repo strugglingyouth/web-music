@@ -10,6 +10,7 @@ import json
 import re
 from pickle import dump
 from collections import OrderedDict
+import re
 
 top50_singer_ID_set=[]
 
@@ -35,6 +36,7 @@ def get_top_50():
     #write_to_file(json.loads(soup.contents))
 
     R=soup.textarea.text #找到歌手ID所在的标签
+    #R=soup.textarea.text #找到歌手ID所在的标签
 
     json_obj=json.loads(R)
     #print json.dumps(json_obj)
@@ -61,7 +63,7 @@ def get_top_50():
     # 列表去重
     top50_singer_ID = sorted(set(top50_singer_ID_set),key=top50_singer_ID_set.index)
 
-    print top50_singer_ID
+    #print top50_singer_ID
     #write_to_file(top50_singer_ID_set)
 
 def get_song_info(singer_ID):
@@ -72,6 +74,19 @@ def get_song_info(singer_ID):
     soup=BeautifulSoup(web_data.text,'lxml')
     #print soup.contents
     singer_name=soup.select("#artist-name")
+
+
+    data=soup.select('div.n-artist')
+    pattern1 = re.compile(r'<div.*?src="(.*?)".*?</div>', re.S)
+
+    for item in data:
+        final = re.findall(pattern1, str(item))
+        if len(final) == 1:
+            singer_pic = final[0]
+
+    print singer_pic
+    #singer_pic = singer_pic[0].get("src")
+
 
     #print type(singer_name)
     #for i in singer_name:
@@ -105,6 +120,4 @@ def get_song_info(singer_ID):
 if __name__ == '__main__':
     get_top_50()
     for singer_ID in top50_singer_ID_set:#依次将列表中的id代表的歌手的歌词下载下来
-        #singer_ID1=singer_ID
-        #func(singer_ID1)
         get_song_info(singer_ID)

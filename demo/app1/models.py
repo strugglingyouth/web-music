@@ -13,7 +13,7 @@ class Singer(models.Model):
 
     singer_id = models.CharField('歌手ID', primary_key=True, max_length=100)
     singer_name = models.CharField('歌手名',max_length=100)
-
+    singer_pic = models.CharField('歌手名',max_length=1024)
 
     def __str__(self):
         return self.singer_name

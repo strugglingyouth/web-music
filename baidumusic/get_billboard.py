@@ -35,9 +35,6 @@ def parse_one_page(html):
     pattern1 = re.compile(r'<li.*?<div class="index">(.*?)</div>.*?href="(.*?)".*?title="(.*?)".*?title="(.*?)".*?href="(.*?)".*?</li>', re.S)
     pattern2 = re.compile(r'<li.*?<div class="index">(.*?)</div>.*?title="(.*?)".*?target="_blank">(.*?)</a>', re.S)
 
-    #data=json.loads(data)
-    #print data
-
     wants = []
     for item in data:
         final = re.findall(pattern1, str(item))
