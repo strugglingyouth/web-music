@@ -60,5 +60,111 @@ class Musiccomment(models.Model):
         return self.comment_content
 
 
+class User(models.Model):
+    """
+        用户表
+    """
+    user_name = models.CharField('用户名',primary_key=True,max_length=100)
+    user_password = models.CharField('密码',max_length=100)
+    user_nick_name = models.CharField('昵称',max_length=100)
+    user_birth = models.CharField('生日',max_length=100)
+    user_sex = models.CharField('性别',max_length=100)
+    user_intro = models.CharField('个人简介',max_length=10024)
+    user_open = models.PositiveIntegerField('是否公开个人信息(粉丝，所有人，保密)(0,1,-1)',default=1)
+    user_list_open = models.BooleanField('是否公开收藏信息',default=True)
+
+    def __str__(self):
+        return self.user_nick_name
+    def __unicode__(self):
+        return self.user_nick_name
+
+
+class Upload(models.Model):
+    """
+        用户上传表
+    """
+    upload_user_name = models.CharField('用户名',max_length=100)
+    upload_music_name = models.CharField('上传歌曲名',max_length=100)
+    upload_open = models.BooleanField('是否公开',default=False)
+    upload_date = models.DateTimeField('创建时间', auto_now_add=True)
+
+    class Meta:
+        ordering = ['-upload_date']
+
+    def __str__(self):
+        return self.upload_user_name
+    def __unicode__(self):
+        return self.upload_user_name
+
+
+class Follow(models.Model):
+    """
+        关注表
+    """
+
+
+    follow_id = models.CharField('被关注id',primary_key=True,max_length=100)
+    follow_user_id = models.CharField('关注者id',max_length=100)
+
+    def __str__(self):
+        return self.follow_id
+    def __unicode__(self):
+        return self.follow_id
+
+
+
+class My_list(models.Model):
+    """
+        歌单表
+    """
+
+    my_list_user_id = models.CharField('创建用户id',max_length=100)
+    my_list_name = models.CharField('歌单名',max_length=100)
+    my_list_count = models.CharField('歌单歌曲数',max_length=100)
+    my_list_open = models.BooleanField('是否公开',default=True)
+    create_date = models.DateTimeField('创建时间', auto_now_add=True)
+
+    def __str__(self):
+        return self.my_list_name
+    def __unicode__(self):
+        return self.my_list_name
+
+
+
+class My_list_to_music(models.Model):
+    """
+        歌单关联到歌曲表
+    """
+
+    my_list_id = models.CharField('歌单id',primary_key=True,max_length=100)
+    music_id = models.CharField('歌曲id',max_length=100)
+
+    def __str__(self):
+        return self.my_list_id
+    def __unicode__(self):
+        return self.my_list_id
+
+class Collection(models.Model):
+    """
+        用户收藏歌单表
+    """
+
+    user_id = models.CharField('用户id',primary_key=True,max_length=100)
+    my_list_id = models.CharField('歌单id',max_length=100)
+
+
+    def __str__(self):
+        return self.user_id
+    def __unicode__(self):
+        return self.user_id
+
+
+
+
+
+
+
+
+
 
 
