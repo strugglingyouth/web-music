@@ -141,7 +141,7 @@ func GetCommentHandler(w http.ResponseWriter, r *http.Request) {
 	//fmt.Println(r)
 	// 不缓存数据
 	w.Header().Set("Pragma", "no-cache")
-	sql := "select * from " + table + " where music_id=" + music_id + ";"
+	sql := "select * from " + table + " where music_id='" + music_id + "';"
 	fmt.Println(sql)
 	rows, err := database.Query(sql)
 	if err != nil {
