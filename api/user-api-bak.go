@@ -105,9 +105,10 @@ type AuthUser struct {
 // HTTP POST - 验证用户并获取用户数据 user api
 func GetUserHandler(w http.ResponseWriter, r *http.Request) {
 	base_url := "http://222.24.63.118:8080/upload/"
-	table := "app1_user"
+	table = "app1_user"
 	authuser := AuthUser{}
 	r.ParseForm()
+	fmt.Println(r)
 	authuser.User_name = r.FormValue("user_name")
 	authuser.User_password = r.FormValue("user_password")
 	output, err := json.Marshal(authuser)
@@ -115,43 +116,27 @@ func GetUserHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		fmt.Println("Errorn\n:", err)
 	}
-	sql := "select * from " + table + " where  user_name='" + authuser.User_name + "' and user_password='" + authuser.User_password + "';"
+	sql := "select * from " + table + "where  user_name='" + authuser.User_name + "' and user_password='" + authuser.User_password + "';"
 	fmt.Println("sql:", sql)
 
-	user_name := authuser.User_name
-
-	//验证用户
 	rows, err := database.Query(sql)
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer rows.Close()
-	Response := UserBase{}
-	fmt.Println("-----------------rows:", rows)
-	ct := 0
+	authuserinfo := AuthUser{}
 	for rows.Next() {
-		ct++
-		user := User{}
-		rows.Scan(&user.User_name, &user.User_password, &user.User_nick_name, &user.User_birth, &user.User_sex, &user.User_intro, &user.User_open, &user.User_list_open, &user.Fans_count, &user.Follow_count, &user.List_count, &user.User_avatar)
-
-		//fmt.Println("-----------------authuser user_name:", user.User_name)
-		if len(user.User_avatar) != 0 {
-			user.User_avatar = base_url + user.User_avatar
+		//createuser := CreateUser{}
+		rows.Scan(&authuserinfo.User_name, &authuserinfo.User_password)
+		if len(authuser) == 0 {
+			Response := Base{}
+			Response.From = "user"
+			Response.Name = table
+			Response.Status = http.StatusBadRequest
+			output, _ := json.Marshal(Response)
+			fmt.Fprintln(w, string(output))
 		}
-		Response.UserBase = append(Response.UserBase, user)
 	}
-
-	if ct == 0 {
-		//fmt.Println("-------------------------->>>>>>>>>>>>>>>>user_name is null")
-		Response := Base{}
-		Response.From = "user"
-		Response.Name = table
-		Response.Status = http.StatusBadRequest
-		output, _ := json.Marshal(Response)
-		fmt.Fprintln(w, string(output))
-		return
-	}
-
 	err = rows.Err()
 	if err != nil {
 		log.Fatal(err)
@@ -163,28 +148,28 @@ func GetUserHandler(w http.ResponseWriter, r *http.Request) {
 	//user_password := vars["user_password"]
 
 	// 不缓存数据
-	//w.Header().Set("Pragma", "no-cache")
-	//user_name := authuser.User_name
-	//sql = "select * from " + table + " where user_name='" + user_name + "';"
-	//fmt.Println(sql)
-	//rows, err = database.Query(sql)
-	//if err != nil {
-	//log.Fatal(err)
-	//}
-	//defer rows.Close()
-	//Response := UserBase{}
-	//for rows.Next() {
-	//user := User{}
-	//rows.Scan(&user.User_name, &user.User_password, &user.User_nick_name, &user.User_birth, &user.User_sex, &user.User_intro, &user.User_open, &user.User_list_open, &user.Fans_count, &user.Follow_count, &user.List_count, &user.User_avatar)
-	//if len(user.User_avatar) != 0 {
-	//user.User_avatar = base_url + user.User_avatar
-	//}
-	//Response.UserBase = append(Response.UserBase, user)
-	//}
-	//err = rows.Err()
-	//if err != nil {
-	//log.Fatal(err)
-	//}
+	w.Header().Set("Pragma", "no-cache")
+	user_name := authuser.User_name
+	sql := "select * from " + table + " where user_name='" + user_name + "';"
+	fmt.Println(sql)
+	rows, err := database.Query(sql)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer rows.Close()
+	Response := UserBase{}
+	for rows.Next() {
+		user := User{}
+		rows.Scan(&user.User_name, &user.User_password, &user.User_nick_name, &user.User_birth, &user.User_sex, &user.User_intro, &user.User_open, &user.User_list_open, &user.Fans_count, &user.Follow_count, &user.List_count, &user.User_avatar)
+		if len(user.User_avatar) != 0 {
+			user.User_avatar = base_url + user.User_avatar
+		}
+		Response.UserBase = append(Response.UserBase, user)
+	}
+	err = rows.Err()
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	// fans 查询
 	sql = "select * from " + table + " where user_name=(select user_name from app1_follow where follow_user_name='" + user_name + "');"
@@ -370,7 +355,7 @@ func GetUserHandler(w http.ResponseWriter, r *http.Request) {
 	Response.From = "user"
 	Response.Name = table
 	Response.Status = http.StatusOK
-	output, _ = json.Marshal(Response)
+	output, _ := json.Marshal(Response)
 	fmt.Fprintln(w, string(output))
 }
 
