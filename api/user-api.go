@@ -157,35 +157,6 @@ func GetUserHandler(w http.ResponseWriter, r *http.Request) {
 		log.Fatal(err)
 	}
 
-	//vars := mux.Vars(r)
-	//table := vars["table"]
-	//user_name := vars["user_name"]
-	//user_password := vars["user_password"]
-
-	// 不缓存数据
-	//w.Header().Set("Pragma", "no-cache")
-	//user_name := authuser.User_name
-	//sql = "select * from " + table + " where user_name='" + user_name + "';"
-	//fmt.Println(sql)
-	//rows, err = database.Query(sql)
-	//if err != nil {
-	//log.Fatal(err)
-	//}
-	//defer rows.Close()
-	//Response := UserBase{}
-	//for rows.Next() {
-	//user := User{}
-	//rows.Scan(&user.User_name, &user.User_password, &user.User_nick_name, &user.User_birth, &user.User_sex, &user.User_intro, &user.User_open, &user.User_list_open, &user.Fans_count, &user.Follow_count, &user.List_count, &user.User_avatar)
-	//if len(user.User_avatar) != 0 {
-	//user.User_avatar = base_url + user.User_avatar
-	//}
-	//Response.UserBase = append(Response.UserBase, user)
-	//}
-	//err = rows.Err()
-	//if err != nil {
-	//log.Fatal(err)
-	//}
-
 	// fans 查询
 	sql = "select * from " + table + " where user_name=(select user_name from app1_follow where follow_user_name='" + user_name + "');"
 	fmt.Println(sql)
