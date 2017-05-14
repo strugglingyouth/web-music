@@ -57,13 +57,15 @@ type Upload struct {
 
 //歌单
 type Music_list struct {
-	Id                string `json:"my_list_id"`
+	Id string `json:"my_list_id"`
+	//My_list_id        string `json:"my_list_id"`
 	My_list_name      string `json:"my_list_name"`
 	My_list_count     string `json:"my_list_count"`
 	My_list_open      string `json:"my_list_open"`
 	Create_date       string `json:"create_date"`
 	My_list_user_name string `json:"my_list_user_name"`
 	From_self         string `json:"from_self"`
+	Collection        string `json:"collection"`
 	//Music_info        []Music `json:"music"`
 	Music_info []Upload `json:"music"`
 }
@@ -212,7 +214,7 @@ func GetUserHandler(w http.ResponseWriter, r *http.Request) {
 	defer rows.Close()
 	for rows.Next() {
 		music_list := Music_list{}
-		rows.Scan(&music_list.Id, &music_list.My_list_name, &music_list.My_list_count, &music_list.My_list_open, &music_list.Create_date, &music_list.My_list_user_name, &music_list.From_self)
+		rows.Scan(&music_list.Id, &music_list.My_list_name, &music_list.My_list_count, &music_list.My_list_open, &music_list.Create_date, &music_list.My_list_user_name, &music_list.From_self, &music_list.Collection)
 		Response.MusicListBase = append(Response.MusicListBase, music_list)
 	}
 	err = rows.Err()
@@ -269,9 +271,10 @@ func GetUserHandler(w http.ResponseWriter, r *http.Request) {
 	// 收藏的歌单信息
 	for i := 0; i < len(coll.Collect); i++ {
 		id := coll.Collect[i].My_list_id
-		sql = "select app1_my_list.id,app1_my_list.my_list_name,app1_my_list.my_list_count,app1_my_list.my_list_open,app1_my_list.create_date,app1_my_list.my_list_user_name,app1_my_list.from_myself  from_myself   from app1_my_list inner join app1_collection  on app1_my_list.id=app1_collection.my_list_id  where my_list_id=" + id + ";"
+		fmt.Println("收藏的歌单信息--------------->", id)
+		sql = "select app1_my_list.id,app1_my_list.my_list_name,app1_my_list.my_list_count,app1_my_list.my_list_open,app1_my_list.create_date,app1_my_list.my_list_user_name,app1_my_list.from_myself,app1_my_list.collection from app1_my_list inner join app1_collection  on app1_my_list.id=app1_collection.my_list_id  where my_list_id=" + id + ";"
 
-		fmt.Println(sql)
+		fmt.Println("collection:", sql)
 		rows, err = database.Query(sql)
 		if err != nil {
 			log.Fatal(err)
@@ -279,7 +282,9 @@ func GetUserHandler(w http.ResponseWriter, r *http.Request) {
 		defer rows.Close()
 		for rows.Next() {
 			music_list := Music_list{}
-			rows.Scan(&music_list.Id, &music_list.My_list_name, &music_list.My_list_count, &music_list.My_list_open, &music_list.Create_date, &music_list.My_list_user_name, &music_list.From_self)
+			rows.Scan(&music_list.Id, &music_list.My_list_name, &music_list.My_list_count, &music_list.My_list_open, &music_list.Create_date, &music_list.My_list_user_name, &music_list.From_self, &music_list.Collection)
+			//	rows.Scan(&music_list.Id, &music_list.My_list_name, &music_list.My_list_count, &music_list.My_list_open, &music_list.Create_date, &music_list.My_list_user_name, &music_list.From_self, &music_list.Collection)
+			fmt.Println("music_list:", music_list)
 			Response.CollectionBase = append(Response.CollectionBase, music_list)
 		}
 		err = rows.Err()
