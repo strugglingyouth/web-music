@@ -11,14 +11,14 @@ import (
 	"log"
 	"net/http"
 	"os"
-	//	"strconv"
+	"strconv"
 	"time"
 )
 
 var database *sql.DB
 
 //设置 upload 初始 id
-var id = 200
+var id = 300
 
 var timestamp = time.Now().Unix()
 var tm = time.Unix(timestamp, 0)
@@ -95,6 +95,11 @@ type Collection struct {
 	My_list_id string `json:"my_list_id"`
 }
 
+type ListToMusic struct {
+	My_list_id string `json:"my_list_id"`
+	Music_id   string `json:"music_id"`
+}
+
 //对字符串进行MD5哈希
 func Md5hash(data string) string {
 	t := md5.New()
@@ -155,7 +160,7 @@ func FormatErrorReturn(err error) []byte {
 
 ///HTTP Put - /modifyuser/{id}
 func PutUserHandler(w http.ResponseWriter, r *http.Request) {
-	base_url := "upload/"
+	base_url := "avatar/"
 	user := User{}
 	//r.ParseForm()
 	r.ParseMultipartForm(32 << 20)
@@ -184,21 +189,23 @@ func PutUserHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// download    avator
-	file, handler, err := r.FormFile("upload_music_file_url")
+	file, handler, err := r.FormFile("user_avatar")
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
 	defer file.Close()
-	//fmt.Fprintf(w, "%v", handler.Header)
-	handler.Filename = Md5hash(handler.Filename) + ".png"
+	fmt.Fprintf(w, "%v", handler.Header)
+	//handler.Filename = Md5hash(handler.Filename) + ".png"
+	handler.Filename = user.User_name + ".png"
 	fmt.Println("filename", handler.Filename)
-	f, err := os.OpenFile("/usr/demo/upload/upload/"+handler.Filename, os.O_WRONLY|os.O_CREATE, 0666)
+	f, err := os.OpenFile("/usr/demo/upload/avatar/"+handler.Filename, os.O_WRONLY|os.O_CREATE, 0666)
 	if err != nil {
 		fmt.Println(err)
-		return
+		//return
 	}
 	defer f.Close()
+	io.Copy(f, file)
 
 	user.User_avatar = base_url + handler.Filename
 
@@ -262,12 +269,9 @@ func PostUploadHandler(w http.ResponseWriter, r *http.Request) {
 	} else {
 		fmt.Println("insert success!")
 		Response.Base.Status = http.StatusOK
-		//Response.Upload = append(Response.Upload, upload)
 		Response.Upload = upload
 	}
 	output, _ = json.Marshal(Response)
-
-	//output = DatabaseFailReturn(err)
 	fmt.Fprintln(w, string(output))
 	id++
 }
@@ -384,10 +388,10 @@ func DeleteFollowHandler(w http.ResponseWriter, r *http.Request) {
 	output = DatabaseFailReturn(err)
 
 	//更新关注人粉丝数
-	upload_follow_user_fans_count := "update app1_user set fans_count = fans_count -1 where user_name='" + follow.Follow_user_name + "';"
-	fmt.Println("sql:", upload_follow_user_fans_count)
-	_, err = database.Exec(upload_follow_user_fans_count)
-	output = DatabaseFailReturn(err)
+	//upload_follow_user_fans_count := "update app1_user set fans_count = fans_count -1 where user_name='" + follow.Follow_user_name + "';"
+	//fmt.Println("sql:", upload_follow_user_fans_count)
+	//_, err = database.Exec(upload_follow_user_fans_count)
+	//output = DatabaseFailReturn(err)
 
 	fmt.Fprintln(w, string(output))
 }
@@ -478,7 +482,7 @@ func DeleteListHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintln(w, string(output))
 }
 
-// HTTP POST - /create/collection( not myself create)
+// HTTP POST - /create/collection( 自己上传的歌曲)
 func CreateCollectionHandler(w http.ResponseWriter, r *http.Request) {
 	collection := Collection{}
 	r.ParseForm()
@@ -493,26 +497,33 @@ func CreateCollectionHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	//写入收藏表
 	sql := "insert into app1_collection set user_name='" + collection.User_name + "',my_list_id='" + collection.My_list_id + "';"
 	fmt.Println("sql:", sql)
 	_, err := database.Exec(sql)
-	Response := Base{}
-	if err != nil {
-		fmt.Println("insert failed!")
-		Response.Status = http.StatusRequestTimeout
-		output, _ := json.Marshal(Response)
-		fmt.Fprintln(w, string(output))
-		return
-	} else {
-		fmt.Println("insert success!")
-		Response.Status = http.StatusOK
-	}
+	output := DatabaseFailReturn(err)
+	//Response := Base{}
+	//if err != nil {
+	//fmt.Println("insert failed!")
+	//Response.Status = http.StatusRequestTimeout
+	//output, _ := json.Marshal(Response)
+	//fmt.Fprintln(w, string(output))
+	//return
+	//} else {
+	//fmt.Println("insert success!")
+	//Response.Status = http.StatusOK
+	//}
 
-	output, _ := json.Marshal(Response)
+	// 更新歌单中歌曲数
+	sql = "update app1_my_list set my_list_count=my_list_count+1 where id=" + collection.My_list_id + ";"
+	fmt.Println("sql:", sql)
+	_, err = database.Exec(sql)
+	output = DatabaseFailReturn(err)
+
 	fmt.Fprintln(w, string(output))
 }
 
-// HTTP POST - /delete/collection (not myself create)
+// HTTP POST - /delete/collection (自己上传的歌曲)
 func DeleteCollectionHandler(w http.ResponseWriter, r *http.Request) {
 	collection := Collection{}
 	r.ParseForm()
@@ -542,103 +553,220 @@ func DeleteCollectionHandler(w http.ResponseWriter, r *http.Request) {
 		Response.Status = http.StatusOK
 	}
 	output, _ := json.Marshal(Response)
+
+	// 更新歌单中歌曲数
+	sql = "update app1_my_list set my_list_count=my_list_count-1 where id=" + collection.My_list_id + ";"
+	fmt.Println("sql:", sql)
+	_, err = database.Exec(sql)
+	output = DatabaseFailReturn(err)
+
 	fmt.Fprintln(w, string(output))
 }
 
-// HTTP POST - /create/collection (myself create)
-func CreateMyselfCollectionHandler(w http.ResponseWriter, r *http.Request) {
-	// insert to 歌单表和关联表
-	//music_list := Music_list{}
-	collection := Collection{}
+// HTTP POST - /create/collection (外链歌曲)
+func CreateNotMyselfCollectionHandler(w http.ResponseWriter, r *http.Request) {
+	// insert to upload 表和关联表
+	table := "app1_upload"
+	upload := Upload{}
+	listtomusic := ListToMusic{}
+	upload.Upload_date = tm.Format("2006-01-02 03:04:05")
+	upload.Id = strconv.Itoa(id)
 	r.ParseForm()
-	fmt.Println(r)
-	collection.My_list_id = r.FormValue("my_list_id")
-	collection.User_name = r.FormValue("user_name")
+	//r.ParseMultipartForm(32 << 20)
+	upload.Upload_user_name = r.FormValue("upload_user_name")
+	upload.Upload_music_name = r.FormValue("upload_music_name")
+	upload.Upload_music_file_url = r.FormValue("upload_music_file_url")
+	upload.From_self = r.FormValue("from_self")
 
-	//music_list.My_list_name = r.FormValue("my_list_name")
-	//music_list.My_list_user_name = r.FormValue("my_list_user_name")
-	//music_list.My_list_count = r.FormValue("my_list_count")
-	//music_list.Create_date = tm.Format("2006-01-02 03:04:05")
-	//music_list.Id = strconv.Itoa(id)
-	////music_list.Id = collection.My_list_id
-	//music_list.From_self = "0"
-	//music_list.Collection = r.FormValue("collection")
+	listtomusic.My_list_id = r.FormValue("my_list_id")
+	listtomusic.Music_id = upload.Id
 
-	if len(collection.My_list_id) == 0 || len(collection.User_name) == 0 {
+	if len(upload.Upload_user_name) == 0 || len(upload.Upload_music_name) == 0 || len(upload.Upload_music_file_url) == 0 || len(listtomusic.My_list_id) == 0 {
 		var err error
 		output := FormatErrorReturn(err)
 		fmt.Fprintln(w, string(output))
 		return
 	}
 
-	// 通过 歌单id获取 对应的歌单表
-	music_list_table := "app1_my_list"
-	music_list := Music_list{}
+	sql := "insert into " + table + " set id=" + upload.Id + ",upload_user_name='" + upload.Upload_user_name + "',upload_music_name='" + upload.Upload_music_name + "',upload_date='" + upload.Upload_date + "',upload_music_file_url='" + upload.Upload_music_file_url + "',from_myself=" + upload.From_self + ";"
+	fmt.Println("sql:", sql)
+	_, err := database.Exec(sql)
+	id++
+	output := DatabaseFailReturn(err)
+	//fmt.Fprintln(w, string(output))
 
-	sql := "select * from " + music_list_table + " where id='" + collection.My_list_id + "';"
-	fmt.Println(sql)
-	rows, err := database.Query(sql)
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer rows.Close()
-	for rows.Next() {
-		rows.Scan(&music_list.Id, &music_list.My_list_name, &music_list.My_list_count, &music_list.My_list_open, &music_list.Create_date, &music_list.My_list_user_name, &music_list.From_self, &music_list.Collection)
-		//	Response.MusicListBase = append(Response.MusicListBase, music_list)
-	}
-	err = rows.Err()
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	// 写入收藏表
-	sql = "insert into app1_collection set user_name='" + collection.User_name + "',my_list_id='" + collection.My_list_id + "';"
+	//写入关联表
+	sql = "insert into app1_my_list_to_music set my_list_id=" + listtomusic.My_list_id + ",music_id=" + listtomusic.Music_id + ";"
 	fmt.Println("sql:", sql)
 	_, err = database.Exec(sql)
-	Response := Base{}
-	if err != nil {
-		fmt.Println("insert failed!")
-		Response.Status = http.StatusRequestTimeout
-		output, _ := json.Marshal(Response)
-		fmt.Fprintln(w, string(output))
-		return
-	} else {
-		fmt.Println("insert success!")
-		Response.Status = http.StatusOK
-	}
+	output = DatabaseFailReturn(err)
 
-	// 插入歌单
-
-	if len(music_list.My_list_name) == 0 || len(music_list.My_list_user_name) == 0 {
-		var err error
-		output := FormatErrorReturn(err)
-		fmt.Fprintln(w, string(output))
-		return
-	}
-
-	sql = "insert into app1_my_list set my_list_user_name='" + music_list.My_list_user_name + "',my_list_name='" + music_list.My_list_name + "',my_list_count='" + music_list.My_list_count + "',collection='" + music_list.Collection + "',create_date='" + music_list.Create_date + "';"
+	// 更新歌单中歌曲数
+	sql = "update app1_my_list set my_list_count=my_list_count+1 where id=" + listtomusic.My_list_id + ";"
 	fmt.Println("sql:", sql)
 	_, err = database.Exec(sql)
-	Response = Base{}
-	if err != nil {
-		fmt.Println("insert failed!")
-		Response.Status = http.StatusRequestTimeout
-		output, _ := json.Marshal(Response)
-		fmt.Fprintln(w, string(output))
-		return
-	} else {
-		fmt.Println("insert success!")
-		Response.Status = http.StatusOK
-	}
-	output, _ := json.Marshal(Response)
+	output = DatabaseFailReturn(err)
 	fmt.Fprintln(w, string(output))
+
+	//// 通过 歌单id获取 对应的歌单表
+	//music_list_table := "app1_my_list"
+	//music_list := Music_list{}
+
+	//sql := "select * from " + music_list_table + " where id='" + collection.My_list_id + "';"
+	//fmt.Println(sql)
+	//rows, err := database.Query(sql)
+	//if err != nil {
+	//log.Fatal(err)
+	//}
+	//defer rows.Close()
+	//for rows.Next() {
+	//rows.Scan(&music_list.Id, &music_list.My_list_name, &music_list.My_list_count, &music_list.My_list_open, &music_list.Create_date, &music_list.My_list_user_name, &music_list.From_self, &music_list.Collection)
+	////	Response.MusicListBase = append(Response.MusicListBase, music_list)
+	//}
+	//err = rows.Err()
+	//if err != nil {
+	//log.Fatal(err)
+	//}
+
+	//// 写入收藏表
+	//sql = "insert into app1_collection set user_name='" + collection.User_name + "',my_list_id='" + collection.My_list_id + "';"
+	//fmt.Println("sql:", sql)
+	//_, err = database.Exec(sql)
+	//Response := Base{}
+	//if err != nil {
+	//fmt.Println("insert failed!")
+	//Response.Status = http.StatusRequestTimeout
+	//output, _ := json.Marshal(Response)
+	//fmt.Fprintln(w, string(output))
+	//return
+	//} else {
+	//fmt.Println("insert success!")
+	//Response.Status = http.StatusOK
+	//}
+
+	//// 插入歌单
+
+	//if len(music_list.My_list_name) == 0 || len(music_list.My_list_user_name) == 0 {
+	//var err error
+	//output := FormatErrorReturn(err)
+	//fmt.Fprintln(w, string(output))
+	//return
+	//}
+
+	//sql = "insert into app1_my_list set my_list_user_name='" + music_list.My_list_user_name + "',my_list_name='" + music_list.My_list_name + "',my_list_count='" + music_list.My_list_count + "',collection='" + music_list.Collection + "',create_date='" + music_list.Create_date + "';"
+	//fmt.Println("sql:", sql)
+	//_, err = database.Exec(sql)
+	//Response = Base{}
+	//if err != nil {
+	//fmt.Println("insert failed!")
+	//Response.Status = http.StatusRequestTimeout
+	//output, _ := json.Marshal(Response)
+	//fmt.Fprintln(w, string(output))
+	//return
+	//} else {
+	//fmt.Println("insert success!")
+	//Response.Status = http.StatusOK
+	//}
+	//output, _ := json.Marshal(Response)
+	//fmt.Fprintln(w, string(output))
 }
 
 // HTTP POST - /delete/myself/collection (myself create)
-func DeleteMyselfCollectionHandler(w http.ResponseWriter, r *http.Request) {
+func DeleteNotMyselfCollectionHandler(w http.ResponseWriter, r *http.Request) {
+	// 先删除歌曲再删除关联表
+	// insert to upload 表和关联表
+	r.ParseForm()
+	upload := Upload{}
+	listtomusic := ListToMusic{}
+	upload.Upload_date = tm.Format("2006-01-02 03:04:05")
+	upload.Id = strconv.Itoa(id)
+	//r.ParseMultipartForm(32 << 20)
+	//upload.Upload_user_name = r.FormValue("upload_user_name")
+	//upload.Upload_music_name = r.FormValue("upload_music_name")
+	//upload.Upload_music_file_url = r.FormValue("upload_music_file_url")
+	//upload.From_self = r.FormValue("from_self")
+
+	listtomusic.My_list_id = r.FormValue("my_list_id")
+	listtomusic.Music_id = r.FormValue("music_id")
+
+	if len(listtomusic.My_list_id) == 0 || len(listtomusic.Music_id) == 0 {
+		var err error
+		output := FormatErrorReturn(err)
+		fmt.Fprintln(w, string(output))
+		return
+	}
+
+	// 删除歌曲
+	sql := "delete from app1_upload where id=" + listtomusic.Music_id + ";"
+	fmt.Println("sql:", sql)
+	_, err := database.Exec(sql)
+
+	output := DatabaseFailReturn(err)
+
+	//删除关联表
+	sql = "delete from app1_my_list_to_music where my_list_id=" + listtomusic.My_list_id + " and music_id=" + listtomusic.Music_id + ";"
+	fmt.Println("sql:", sql)
+	_, err = database.Exec(sql)
+	output = DatabaseFailReturn(err)
+
+	// 更新歌单中歌曲数
+	sql = "update app1_my_list set my_list_count=my_list_count-1 where id=" + listtomusic.My_list_id + ";"
+	fmt.Println("sql:", sql)
+	_, err = database.Exec(sql)
+	output = DatabaseFailReturn(err)
+
+	fmt.Fprintln(w, string(output))
+
+	//Response := Base{}
+	//if err != nil {
+	//fmt.Println("insert failed!")
+	//Response.Base.Status = http.StatusRequestTimeout
+	//} else {
+	//fmt.Println("insert success!")
+	//Response.Base.Status = http.StatusOK
+	//Response.Upload = upload
+	//}
+	//output, _ = json.Marshal(Response)
+	//fmt.Fprintln(w, string(output))
+
+	//collection := Collection{}
+	//r.ParseForm()
+	//fmt.Println(r)
+	//collection.My_list_id = r.FormValue("my_list_id")
+	//collection.User_name = r.FormValue("user_name")
+
+	//if len(collection.My_list_id) == 0 || len(collection.User_name) == 0 {
+	//var err error
+	//output := FormatErrorReturn(err)
+	//fmt.Fprintln(w, string(output))
+	//return
+	//}
+
+	//sql := "delete from app1_collection where user_name='" + collection.User_name + "' and my_list_id='" + collection.My_list_id + "';"
+	//fmt.Println("sql:", sql)
+	//_, err := database.Exec(sql)
+	//Response := Base{}
+	//if err != nil {
+	//fmt.Println("insert failed!")
+	//Response.Status = http.StatusRequestTimeout
+	//output, _ := json.Marshal(Response)
+	//fmt.Fprintln(w, string(output))
+	//return
+	//} else {
+	//fmt.Println("insert success!")
+	//Response.Status = http.StatusOK
+	//}
+	//output, _ := json.Marshal(Response)
+	//fmt.Fprintln(w, string(output))
+}
+
+// HTTP POST - /create/collectionlist  收藏歌单
+func CreateCollectionListHandler(w http.ResponseWriter, r *http.Request) {
+	// insert to upload 表和关联表
 	collection := Collection{}
 	r.ParseForm()
-	fmt.Println(r)
+	//r.ParseMultipartForm(32 << 20)
+
 	collection.My_list_id = r.FormValue("my_list_id")
 	collection.User_name = r.FormValue("user_name")
 
@@ -649,21 +777,49 @@ func DeleteMyselfCollectionHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	sql := "delete from app1_collection where user_name='" + collection.User_name + "' and my_list_id='" + collection.My_list_id + "';"
+	sql := "insert into app1_collection set user_name='" + collection.User_name + "',my_list_id=" + collection.My_list_id + ";"
 	fmt.Println("sql:", sql)
 	_, err := database.Exec(sql)
-	Response := Base{}
-	if err != nil {
-		fmt.Println("insert failed!")
-		Response.Status = http.StatusRequestTimeout
-		output, _ := json.Marshal(Response)
+	id++
+	output := DatabaseFailReturn(err)
+	fmt.Fprintln(w, string(output))
+
+	////写入关联表
+	//sql = "insert into app1_my_list_to_music set my_list_id=" + listtomusic.My_list_id + ",music_id=" + listtomusic.Music_id + ";"
+	//fmt.Println("sql:", sql)
+	//_, err = database.Exec(sql)
+	//output = DatabaseFailReturn(err)
+
+	//// 更新歌单中歌曲数
+	//sql = "update app1_my_list set my_list_count=my_list_count+1 where id=" + listtomusic.My_list_id + ";"
+	//fmt.Println("sql:", sql)
+	//_, err = database.Exec(sql)
+	//output = DatabaseFailReturn(err)
+	//fmt.Fprintln(w, string(output))
+}
+
+// HTTP POST - /create/collectionlist  删除收藏歌单
+func DeleteCollectionListHandler(w http.ResponseWriter, r *http.Request) {
+	// insert to upload 表和关联表
+	collection := Collection{}
+	r.ParseForm()
+	//r.ParseMultipartForm(32 << 20)
+
+	collection.My_list_id = r.FormValue("my_list_id")
+	collection.User_name = r.FormValue("user_name")
+
+	if len(collection.My_list_id) == 0 || len(collection.User_name) == 0 {
+		var err error
+		output := FormatErrorReturn(err)
 		fmt.Fprintln(w, string(output))
 		return
-	} else {
-		fmt.Println("insert success!")
-		Response.Status = http.StatusOK
 	}
-	output, _ := json.Marshal(Response)
+
+	sql := "delete from app1_collection where user_name='" + collection.User_name + "' and my_list_id=" + collection.My_list_id + ";"
+	fmt.Println("sql:", sql)
+	_, err := database.Exec(sql)
+	id++
+	output := DatabaseFailReturn(err)
 	fmt.Fprintln(w, string(output))
 }
 func main() {
@@ -695,18 +851,23 @@ func main() {
 	// 删除歌单
 	r.HandleFunc("/delete/musiclist", DeleteListHandler).Methods("POST")
 
-	//添加收藏(not myself)
+	//收藏(歌曲not myself)
 	r.HandleFunc("/create/collection", CreateCollectionHandler).Methods("POST")
-	// 删除收藏(not myself)
+	// 收藏歌曲(not myself)
 	r.HandleFunc("/delete/collection", DeleteCollectionHandler).Methods("POST")
 
-	////添加收藏( myself)
-	r.HandleFunc("/create/myself/collection", CreateMyselfCollectionHandler).Methods("POST")
-	// 删除收藏( myself)
-	r.HandleFunc("/delete/myself/collection", DeleteMyselfCollectionHandler).Methods("POST")
+	////收藏歌曲( myself)
+	r.HandleFunc("/create/notmyself/collection", CreateNotMyselfCollectionHandler).Methods("POST")
+	// 收藏歌曲( myself)
+	r.HandleFunc("/delete/notmyself/collection", DeleteNotMyselfCollectionHandler).Methods("POST")
 
+	////收藏歌单
+	r.HandleFunc("/create/collectionlist", CreateCollectionListHandler).Methods("POST")
+	//删除收藏歌单
+	r.HandleFunc("/delete/collectionlist", DeleteCollectionListHandler).Methods("POST")
 	server := &http.Server{
-		Addr:    ":8880",
+		Addr: ":8880",
+		//Addr:    ":7770",
 		Handler: r,
 	}
 	log.Printf("Listening at %s...", server.Addr)
